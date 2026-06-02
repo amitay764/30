@@ -447,40 +447,28 @@ createPlatform(-3,17,15.4,1.8,1.8);
 createCollectible(-3,17,15.3);
 createPlatform(-6.2,14.5,16,1.8,1.8);
 createCollectible(-6.2,14.5,16.3);
-//למטה גמיני
+//למטה kMMAKM
 // שורה 1 (X = -10.2)
-
-
-createPlatform(-10.2, 14.5, 16, 1.8, 1.8);
-createCollectible(-10.2, 14.5, 16.3);
-
-// שורה 2 (X = -6.2 - המקורית שלך באמצע)
-createPlatform(-6.2, 14.5, 12, 1.8, 1.8);
-createCollectible(-6.2, 14.5, 12.3);
-
-createPlatform(-6.2, 14.5, 16, 1.8, 1.8); // פלטפורמת הבסיס שלך
-createCollectible(-6.2, 14.5, 16.3);
-
-createPlatform(-6.2, 14.5, 20, 1.8, 1.8);
-createCollectible(-6.2, 14.5, 20.3);
-
-// שורה 3 (X = -2.2)
-createPlatform(-2.2, 14.5, 12, 1.8, 1.8);
-createCollectible(-2.2, 14.5, 12.3);
-
-createPlatform(-2.2, 14.5, 16, 1.8, 1.8);
-createCollectible(-2.2, 14.5, 16.3);
-
-createPlatform(-2.2, 14.5, 20, 1.8, 1.8);
-createCollectible(-2.2, 14.5, 20.3);
-
-
-
-
-
-
-
-
+createPlatform(-6.2,14.5,17,1.8,1.8);
+createCollectible(-6.2,14.5,16.3);
+//
+createPlatform(-6.2,14.5,18,1.8,1.8);
+createCollectible(-6.2,14.5,16.3);
+//
+createPlatform(-6.2,14.5,19,1.8,1.8);
+createCollectible(-6.2,14.5,16.3);
+//
+createPlatform(-6.2,14.5,5,1.8,1.8);
+createCollectible(-6.2,14.5,16.3);
+//
+createPlatform(-6.2,14.5,6,1.8,1.8);
+createCollectible(-6.2,14.5,16.3);
+//
+createPlatform(-6.2,14.5,7,1.8,1.8);
+createCollectible(-6.2,14.5,16.3);
+//
+createPlatform(-6.2,14.5,8,1.8,1.8);
+createCollectible(-6.2,14.5,16.3);
 
 
 
