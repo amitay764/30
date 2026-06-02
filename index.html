@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>משחק Three.js תלת מימד</title>
+  <link rel="stylesheet" href="style.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="overlay">
+    <h1>איסוף מטבעות תלת-מימד</h1>
+    <p>השתמש ב-<strong>W/A/S/D</strong> או <strong>חיצים</strong> כדי לזוז ו-<strong>Space</strong> כדי לקפוץ.</p>
+    <p>גרור עם העכבר כדי לסובב את נקודת המבט. מטבע אחד שווה נקודה אחת.</p>
+    <p>קפוץ מפלטפורמה לפלטפורמה כדי להגיע לפסגות הגבוהות.</p>
+    <div class="stats">
+      <div>ניקוד: <span id="score">0</span></div>
+      <div>נשארים: <span id="remaining">10</span></div>
+    </div>
+    <div id="status">התחל לאסוף!</div>
+    <button id="restart" class="hidden">שחק שוב</button>
+  </div>
+<select id="animationSelect">
+  <option value="">בחר אנימציה</option>
+</select>
+  <script type="module" src="script.js"></script>
+</body>
+</html>
