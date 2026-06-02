@@ -68,7 +68,6 @@ loader.load('./player.glb', (gltf) => {
   const bbox = new THREE.Box3().setFromObject(model);
   const size = bbox.getSize(new THREE.Vector3());
   
-  // שינוי כאן: הקטנו את הגובה היחסי ל-0.055 כדי שיהיה קטן פי 2 מהגרסה הקודמת
   let scale = size.y > 0 ? 0.055 / size.y : 1;
   model.scale.setScalar(scale);
   model.visible = true;
@@ -191,11 +190,16 @@ let hasStartedMoving = false;
 let goalReached = false;
 let goalPlatform = null;
 
-function createCollectible(x, z, y = 0.8) {
+function createCollectible(x, z, y = 0.8, parentPlatform = null) {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.1), collectibleMaterial);
   mesh.position.set(x, y, z);
   mesh.castShadow = true;
-  mesh.userData = { collected: false, bobOffset: Math.random() * Math.PI * 2, baseY: y };
+  mesh.userData = { 
+    collected: false, 
+    bobOffset: Math.random() * Math.PI * 2, 
+    baseY: y,
+    parentPlatform: parentPlatform // קישור לפלטפורמה כדי שיזוז איתה
+  };
   scene.add(mesh);
   collectibles.push(mesh);
 }
@@ -234,6 +238,7 @@ function createPlatform(x, z, y, width, depth, options = {}) {
       distance: options.moving.distance,
       speed: options.moving.speed,
       baseX: x,
+      baseY: y,
       baseZ: z,
       dir: options.moving.dir || 1
     } : null,
@@ -368,8 +373,10 @@ function updateMovingPlatforms(delta) {
     if (!platform.moving) return;
     const move = platform.moving.speed * delta * platform.moving.dir;
     const previousX = platform.x;
+    const previousY = platform.y;
     const previousZ = platform.z;
 
+    // ציר X
     if (platform.moving.axis === 'x') {
       platform.x += move;
       platform.group.position.x += move;
@@ -382,7 +389,23 @@ function updateMovingPlatforms(delta) {
         platform.group.position.x = platform.x - platform.moving.baseX;
         platform.moving.dir = 1;
       }
-    } else {
+    } 
+    // ציר Y (חדש!)
+    else if (platform.moving.axis === 'y') {
+      platform.y += move;
+      platform.group.position.y += move;
+      if (platform.y > platform.moving.baseY + platform.moving.distance) {
+        platform.y = platform.moving.baseY + platform.moving.distance;
+        platform.group.position.y = platform.y - platform.moving.baseY;
+        platform.moving.dir = -1;
+      } else if (platform.y < platform.moving.baseY - platform.moving.distance) {
+        platform.y = platform.moving.baseY - platform.moving.distance;
+        platform.group.position.y = platform.y - platform.moving.baseY;
+        platform.moving.dir = 1;
+      }
+    }
+    // ציר Z
+    else {
       platform.z += move;
       platform.group.position.z += move;
       if (platform.z > platform.moving.baseZ + platform.moving.distance) {
@@ -397,22 +420,34 @@ function updateMovingPlatforms(delta) {
     }
 
     const dx = platform.x - previousX;
+    const dy = platform.y - previousY;
     const dz = platform.z - previousZ;
+
     _platformBox.setFromObject(platform.group);
     const min = _platformBox.min;
     const max = _platformBox.max;
     const playerBottom = playerBox.min.y;
     const onPlatform = playerBox.max.x >= min.x - 0.01 && playerBox.min.x <= max.x + 0.01;
     const insideZ = playerBox.max.z >= min.z - 0.01 && playerBox.min.z <= max.z + 0.01;
-    const onPlatformFinal = onPlatform && insideZ && playerBottom >= max.y - 0.01 - 0.3 && playerBottom <= max.y + 0.6;
+    
+    // בדיקה מעט יותר סלחנית בגובה עבור פלטפורמות שיורדות למטה
+    const onPlatformFinal = onPlatform && insideZ && playerBottom >= (max.y - dy) - 0.05 - 0.3 && playerBottom <= (max.y - dy) + 0.6;
 
     if (onPlatformFinal && !goalReached) {
       player.position.x += dx;
       player.position.z += dz;
+      
+      // אם הפלטפורמה זזה אנכית, נצמיד את השחקן אליה כדי שלא ירחף או ישקע
+      if (platform.moving.axis === 'y') {
+        player.position.y = platform.y - playerBottomOffset;
+        playerVelocity.y = 0;
+        isGrounded = true;
+      }
     }
   });
 }
 
+// יצירת פלטפורמות ומטבעות
 createPlatform(4, -5, 1.8, 3.2, 3.2);
 createCollectible(4, -5, 2.3);
 createPlatform(2, -3, 3.4, 2.6, 2.6, { moving: { axis: 'x', distance: 3, speed: 1.2 } }); 
@@ -423,32 +458,42 @@ createPlatform(1.5, 1.5, 6.2, 2.2, 2.2, { moving: { axis: 'z', distance: 3, spee
 createCollectible(1.5, 1.5, 6.7);
 createPlatform(-1, 3.5, 7.6, 2.0, 2.0);
 createCollectible(-1, 3.5, 8.1);
-
 createPlatform(-1.5, 6, 9, 2.4, 2.4, { moving: { axis: 'x', distance: 3, speed: 1.0 } }); 
 createCollectible(-1.5, 6, 8.7);
 createPlatform(0, 8.5, 10.6, 1.6, 1.6);
 createCollectible(0, 8.5, 11.3);
-createPlatform(0, 9.8, 11.7, 1.6, 1.6); 
-createCollectible(0.8, 9.8, 11.7);
 createPlatform(1.5, 11, 12.4, 1.6, 1.6, { moving: { axis: 'z', distance: 3, speed: 1.2 } });
 createCollectible(1.5, 11, 13.2);
 createPlatform(0.3, 12, 13.5, 1.2, 1.2, { type: 'bounce' });
 createCollectible(0.3, 12, 14.0);
 createPlatform(-0.5, 13, 14.8, 1.8, 1.8);
 createCollectible(-0.5, 13, 15.3);
-
 createPlatform(-3, 17, 15.4, 1.8, 1.8);
-createCollectible(-3, 17, 15.3);
+createCollectible(-3, 17, 15.7);
+createPlatform(-7, 20, 10, 1.8, 1.8);
+createCollectible(-7, 20, 10.3);
+createPlatform(-7, 16, 10, 1.8, 1.8);
+createCollectible(-7, 16, 10.3);
+createPlatform(-12, 20, 10, 1.8, 1.8);
+createCollectible(-12, 20, 10.3);
 
-createPlatform(-6.2, 14.5, 16, 1.8, 1.8);
-createCollectible(-6.2, 14.5, 16.3);
 
-createPlatform(-5.4, 10, 5, 1.8, 1.8);
-createCollectible(-5.4, 10, 5.3);
 
-createPlatform(-4.2, 14.2, 12,2, 1.8, 1.8);
-createCollectible(-4.2, 12, 6.3);
 
+
+
+
+
+
+
+
+
+
+
+
+// שינוי כאן: הפלטפורמה האחרונה זזה כעת למעלה ולמטה (ציר y) והמטבע מקושר אליה
+const verticalPlatform = createPlatform(-16, 22, 20, 1.6, 1.6, { moving: { axis: 'y', distance: 10, speed: 2 } });
+createCollectible(-16, 22, 20.5, verticalPlatform);
 
 
 isGrounded = !!getPlatformUnder();
@@ -655,7 +700,13 @@ function updateCollectibles(delta) {
   collectibles.forEach((mesh) => {
     if (mesh.userData.collected) return;
     mesh.rotation.z += delta * 2;
-    mesh.position.y = mesh.userData.baseY + Math.sin(mesh.userData.bobOffset + performance.now() * 0.003) * 0.15;
+    
+    // אם המטבע מקושר לפלטפורמה זזה, נוסיף את גובה הפלטפורמה לחישוב המיקום שלו
+    if (mesh.userData.parentPlatform && mesh.userData.parentPlatform.moving) {
+      mesh.position.y = mesh.userData.parentPlatform.y + (mesh.userData.baseY - mesh.userData.parentPlatform.moving.baseY) + Math.sin(mesh.userData.bobOffset + performance.now() * 0.003) * 0.15;
+    } else {
+      mesh.position.y = mesh.userData.baseY + Math.sin(mesh.userData.bobOffset + performance.now() * 0.003) * 0.15;
+    }
   });
 }
 
