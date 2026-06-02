@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { FBXLoader } from 'https://cdn.jsdelivr.net/npm/three@0.158.0/examples/jsm/loaders/FBXLoader.js';
+import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.158.0/examples/jsm/loaders/GLTFLoader.js';
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
@@ -49,10 +49,11 @@ scene.add(player);
 const startPlatformY = 1.8;
 
 
-const loader = new FBXLoader();
-loader.load('./Walking.fbx', (object) => {
-  const model = object;
+const loader = new GLTFLoader();
+loader.load('./player.glb', (gltf) => {
+  const model = gltf.scene; 
   const skinnedMeshes = [];
+  
   model.traverse((node) => {
     if (node.isMesh) {
       node.castShadow = true;
@@ -66,28 +67,26 @@ loader.load('./Walking.fbx', (object) => {
 
   const bbox = new THREE.Box3().setFromObject(model);
   const size = bbox.getSize(new THREE.Vector3());
-  let scale = size.y > 0 ? 2.2 / size.y : 1;
-  scale *= 0.9;
+  
+  // שינוי כאן: הקטנו את הגובה היחסי ל-0.055 כדי שיהיה קטן פי 2 מהגרסה הקודמת
+  let scale = size.y > 0 ? 0.055 / size.y : 1;
   model.scale.setScalar(scale);
   model.visible = true;
-  // reposition model so its bottom sits at y=0 relative to player group
+  
   model.position.y -= bbox.min.y * scale;
   model.position.y += 0.03;
   model.rotation.y = Math.PI;
   player.add(model);
 
-  // after scaling and positioning, update matrices and compute accurate bounding boxes
   model.updateMatrixWorld(true);
   player.updateMatrixWorld(true);
   const modelBbox = new THREE.Box3().setFromObject(model);
   const modelSize = modelBbox.getSize(new THREE.Vector3());
   const playerBbox = new THREE.Box3().setFromObject(player);
   const playerBottom = playerBbox.min.y - player.position.y;
-  // set collision radius to half the larger horizontal dimension
+  
   playerRadius = Math.max(modelSize.x, modelSize.z) / 2;
-  // set eye height relative to model height (approx. above center)
   playerEyeHeight = modelSize.y * 0.6;
-  // store model size and bottom offset for hitbox calculations
   playerSize.copy(modelSize);
   playerBottomOffset = playerBottom;
   playerReady = true;
@@ -107,7 +106,7 @@ loader.load('./Walking.fbx', (object) => {
     statusEl.textContent = 'מודל נטען, אך לא נמצא שלד ריג (SkinnedMesh)';
   }
 
-  const animations = object.animations || [];
+  const animations = gltf.animations || [];
   if (animations.length > 0) {
     mixer = new THREE.AnimationMixer(model);
     const walkClip = animations.find((clip) => /walk|run/i.test(clip.name));
@@ -145,7 +144,7 @@ loader.load('./Walking.fbx', (object) => {
       statusEl.textContent += ' (לא נמצאה אנימציית קפיצה, ישתמש בקליפ ההליכה במקום)';
     }
   } else if (!skinnedMeshes.length) {
-    statusEl.textContent = 'מודל נטען אך לא נמצאו אנימציות ו/או שלד ב-FBX';
+    statusEl.textContent = 'מודל נטען אך לא נמצאו אנימציות ו/או שלד ב-GLB';
   }
 }, undefined, (error) => {
   console.error('Error loading player model:', error);
@@ -202,6 +201,8 @@ function createCollectible(x, z, y = 0.8) {
 }
 
 function createPlatform(x, z, y, width, depth, options = {}) {
+  if (x === undefined) return null; 
+  
   const cols = Math.max(1, Math.round(width));
   const rows = Math.max(1, Math.round(depth));
   const platformGroup = new THREE.Group();
@@ -235,8 +236,7 @@ function createPlatform(x, z, y, width, depth, options = {}) {
       baseX: x,
       baseZ: z,
       dir: options.moving.dir || 1
-    } : null
-    ,
+    } : null,
     type: options.type || null
   };
 
@@ -330,7 +330,6 @@ function updatePlayerBox() {
 function getPlatformUnder() {
   updatePlayerBox();
   return platforms.find((platform) => {
-    // compute platform world bbox from its visual group
     _platformBox.setFromObject(platform.group);
     const min = _platformBox.min;
     const max = _platformBox.max;
@@ -343,9 +342,8 @@ function getPlatformUnder() {
 }
 
 function findPlatformBetween(prevBottom, currentBottom) {
-  if (currentBottom >= prevBottom) return null; // not moving down
+  if (currentBottom >= prevBottom) return null;
   updatePlayerBox();
-  // look for platforms whose top lies between currentBottom and prevBottom using world bbox
   const candidates = platforms.filter((platform) => {
     _platformBox.setFromObject(platform.group);
     const min = _platformBox.min;
@@ -356,7 +354,6 @@ function findPlatformBetween(prevBottom, currentBottom) {
     return insideX && insideZ && topY <= prevBottom && topY >= currentBottom;
   });
   if (candidates.length === 0) return null;
-  // choose the highest platform hit (by world topY)
   candidates.sort((a, b) => {
     const ba = (_platformBox.setFromObject(a.group), _platformBox.max.y);
     const bb = (_platformBox.setFromObject(b.group), _platformBox.max.y);
@@ -401,16 +398,15 @@ function updateMovingPlatforms(delta) {
 
     const dx = platform.x - previousX;
     const dz = platform.z - previousZ;
-    // compute world bbox for platform
     _platformBox.setFromObject(platform.group);
     const min = _platformBox.min;
     const max = _platformBox.max;
     const playerBottom = playerBox.min.y;
-    const onPlatform = playerBox.max.x >= min.x - 0.01 && playerBox.min.x <= max.x + 0.01 &&
-      playerBox.max.z >= min.z - 0.01 && playerBox.min.z <= max.z + 0.01 &&
-      playerBottom >= max.y - 0.01 - 0.3 && playerBottom <= max.y + 0.6;
+    const onPlatform = playerBox.max.x >= min.x - 0.01 && playerBox.min.x <= max.x + 0.01;
+    const insideZ = playerBox.max.z >= min.z - 0.01 && playerBox.min.z <= max.z + 0.01;
+    const onPlatformFinal = onPlatform && insideZ && playerBottom >= max.y - 0.01 - 0.3 && playerBottom <= max.y + 0.6;
 
-    if (onPlatform && !goalReached) {
+    if (onPlatformFinal && !goalReached) {
       player.position.x += dx;
       player.position.z += dz;
     }
@@ -419,20 +415,20 @@ function updateMovingPlatforms(delta) {
 
 createPlatform(4, -5, 1.8, 3.2, 3.2);
 createCollectible(4, -5, 2.3);
-createPlatform(2, -3, 3.4, 2.6, 2.6, { moving: { axis: 'x', distance: 3, speed: 1.2 } }); //number 1
+createPlatform(2, -3, 3.4, 2.6, 2.6, { moving: { axis: 'x', distance: 3, speed: 1.2 } }); 
 createCollectible(2, -3, 3.9);
 createPlatform(0, -1, 4.8, 2.4, 2.4);
 createCollectible(0, -1, 5.3);
-createPlatform(1.5, 1.5, 6.2, 2.2, 2.2, { moving: { axis: 'z', distance: 3, speed: 1.5 } }); //number 2 
+createPlatform(1.5, 1.5, 6.2, 2.2, 2.2, { moving: { axis: 'z', distance: 3, speed: 1.5 } }); 
 createCollectible(1.5, 1.5, 6.7);
 createPlatform(-1, 3.5, 7.6, 2.0, 2.0);
 createCollectible(-1, 3.5, 8.1);
 
-createPlatform(-1.5, 6, 9, 2.4, 2.4, { moving: { axis: '', distance: 3, speed: 1.0 } }); //number 3
+createPlatform(-1.5, 6, 9, 2.4, 2.4, { moving: { axis: 'x', distance: 3, speed: 1.0 } }); 
 createCollectible(-1.5, 6, 8.7);
 createPlatform(0, 8.5, 10.6, 1.6, 1.6);
 createCollectible(0, 8.5, 11.3);
-createPlatform(  );
+createPlatform(0, 9.8, 11.7, 1.6, 1.6); 
 createCollectible(0.8, 9.8, 11.7);
 createPlatform(1.5, 11, 12.4, 1.6, 1.6, { moving: { axis: 'z', distance: 3, speed: 1.2 } });
 createCollectible(1.5, 11, 13.2);
@@ -440,37 +436,18 @@ createPlatform(0.3, 12, 13.5, 1.2, 1.2, { type: 'bounce' });
 createCollectible(0.3, 12, 14.0);
 createPlatform(-0.5, 13, 14.8, 1.8, 1.8);
 createCollectible(-0.5, 13, 15.3);
-//createGoalPlatform(0, 16, 16, 2.4, 2.4);
-                                                        //collect 0.3 highest
-                                                        //platform at least 1.5,3 
-createPlatform(-3,17,15.4,1.8,1.8);
-createCollectible(-3,17,15.3);
-createPlatform(-6.2,14.5,16,1.8,1.8);
-createCollectible(-6.2,14.5,16.3);
-//למטה kMMAKM
-// שורה 1 (X = -10.2)
-createPlatform(-6.2,14.5,17,1.8,1.8);
-createCollectible(-6.2,14.5,16.3);
-//
-createPlatform(-6.2,14.5,18,1.8,1.8);
-createCollectible(-6.2,14.5,16.3);
-//
-createPlatform(-6.2,14.5,19,1.8,1.8);
-createCollectible(-6.2,14.5,16.3);
-//
-createPlatform(-6.2,14.5,5,1.8,1.8);
-createCollectible(-6.2,14.5,16.3);
-//
-createPlatform(-6.2,14.5,6,1.8,1.8);
-createCollectible(-6.2,14.5,16.3);
-//
-createPlatform(-6.2,14.5,7,1.8,1.8);
-createCollectible(-6.2,14.5,16.3);
-//
-createPlatform(-6.2,14.5,8,1.8,1.8);
-createCollectible(-6.2,14.5,16.3);
 
+createPlatform(-3, 17, 15.4, 1.8, 1.8);
+createCollectible(-3, 17, 15.3);
 
+createPlatform(-6.2, 14.5, 16, 1.8, 1.8);
+createCollectible(-6.2, 14.5, 16.3);
+
+createPlatform(-5.4, 10, 5, 1.8, 1.8);
+createCollectible(-5.4, 10, 5.3);
+
+createPlatform(-4.2, 14.2, 12,2, 1.8, 1.8);
+createCollectible(-4.2, 12, 6.3);
 
 
 
@@ -556,7 +533,6 @@ function updatePlayer(delta) {
     playerVelocity.z = 0;
   }
 
-  // record previous bottom for sweep test
   updatePlayerBox();
   const prevBottom = prevPlayerBottom ?? playerBox.min.y;
   playerVelocity.y += gravity * delta;
@@ -568,14 +544,12 @@ function updatePlayer(delta) {
   player.rotation.y = cameraState.yaw + Math.PI;
 
   let platformUnder = getPlatformUnder();
-  // if no platform detected and we moved downward, check if we crossed one this frame
   updatePlayerBox();
   const currentBottom = playerBox.min.y;
   if (!platformUnder && playerVelocity.y <= 0) {
     const crossed = findPlatformBetween(prevBottom, currentBottom);
     if (crossed) {
       platformUnder = crossed;
-      // snap player to the crossed platform
       player.position.y = crossed.y - playerBottomOffset;
       playerVelocity.y = 0;
       isGrounded = true;
@@ -585,19 +559,16 @@ function updatePlayer(delta) {
       statusEl.textContent = 'עמדת על הפלטפורמה! המשך ומצא את המטבעות';
     }
   }
-  // detect start of fall
   if (isGrounded && !platformUnder) {
     isFalling = true;
     fallStartY = player.position.y;
   }
   if (platformUnder && playerVelocity.y <= 0) {
-    // landed on a platform
     const landY = platformUnder.y - playerBottomOffset;
-    // bounce platforms
     if (platformUnder.type === 'bounce' && isFalling && fallStartY !== null) {
       const fallHeight = Math.max(0, fallStartY - platformUnder.y);
       const bounceVel = Math.sqrt(2 * -gravity * fallHeight) * 0.85;
-      player.position.y = landY + 0.01; // small offset so bounce physics applies
+      player.position.y = landY + 0.01; 
       playerVelocity.y = bounceVel;
       isGrounded = false;
       isJumping = true;
@@ -655,7 +626,6 @@ function updatePlayer(delta) {
     setTimeout(() => window.location.reload(), 700);
     return;
   }
-  // handle climbing ladders
   if (!isGrounded) {
     const ladderZone = ladders.find((lad) => {
       const dx = Math.abs(player.position.x - lad.x);
@@ -663,7 +633,6 @@ function updatePlayer(delta) {
       return dx < 0.6 && dz < 0.6 && player.position.y >= lad.y - 0.1 && player.position.y <= lad.y + lad.height + 0.5;
     });
     if (ladderZone && (keys.w || keys.arrowup)) {
-      // climb up
       const climbSpeed = 3;
       player.position.y += climbSpeed * delta;
       playerVelocity.y = 0;
@@ -678,7 +647,6 @@ function updatePlayer(delta) {
       return;
     }
   }
-  // update prev bottom for next frame (feet position)
   updatePlayerBox();
   prevPlayerBottom = playerBox.min.y;
 }
@@ -717,7 +685,6 @@ function checkObstacles() {
   obstacles.forEach((mesh) => {
     tempBox.setFromObject(mesh);
     if (playerBox.intersectsBox(tempBox)) {
-      // hit deadly obstacle
       statusEl.textContent = 'פגעת במכשול! נופל...';
       setTimeout(() => window.location.reload(), 600);
     }
