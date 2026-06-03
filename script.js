@@ -477,7 +477,8 @@ createCollectible(-7, 16, 10.3);
 createPlatform(-12, 20, 10, 1.8, 1.8);
 createCollectible(-12, 20, 10.3);
 
-
+createPlatform(-16, 20, 32, 1.8, 1.8);
+createCollectible(-16, 20, 32);
 
 
 
@@ -493,7 +494,7 @@ createCollectible(-12, 20, 10.3);
 
 // שינוי כאן: הפלטפורמה האחרונה זזה כעת למעלה ולמטה (ציר y) והמטבע מקושר אליה
 const verticalPlatform = createPlatform(-16, 22, 20, 1.6, 1.6, { moving: { axis: 'y', distance: 10, speed: 2 } });
-createCollectible(-16, 22, 20.5, verticalPlatform);
+createCollectible(-16, 22, 20, verticalPlatform);
 
 
 isGrounded = !!getPlatformUnder();
