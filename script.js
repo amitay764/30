@@ -451,7 +451,7 @@ function updateMovingPlatforms(delta) {
 createPlatform(4, -5, 1.8, 3.2, 3.2);
 createCollectible(4, -5, 2.3);
 createPlatform(2, -3, 3.4, 2.6, 2.6, { moving: { axis: 'x', distance: 3, speed: 1.2 } }); 
-createCollectible(2, -3, 3.9);
+createCollectible(2, -3, 3.9 );
 createPlatform(0, -1, 4.8, 2.4, 2.4);
 createCollectible(0, -1, 5.3);
 createPlatform(1.5, 1.5, 6.2, 2.2, 2.2, { moving: { axis: 'z', distance: 3, speed: 1.5 } }); 
@@ -476,24 +476,26 @@ createPlatform(-7, 16, 10, 1.8, 1.8);
 createCollectible(-7, 16, 10.3);
 createPlatform(-12, 20, 10, 1.8, 1.8);
 createCollectible(-12, 20, 10.3);
-
-createPlatform(-16, 20, 32, 1.8, 1.8);
-createCollectible(-16, 20, 32);
-
-
-
-
-
-
-
-
-
+createPlatform(-16, 20, 28, 1.8, 1.8);
+createCollectible(-16, 20, 28,3);
+createPlatform(-16, 15, 29, 1.8, 1.8);
+createCollectible(-16, 15, 29,3);
+createPlatform(-17, 10, 30, 1.8, 1.8);
+createCollectible(-17, 10, 30,3);
+createPlatform(-19, 7, 31, 1.8, 1.8);
+createCollectible(-19, 7, 31,3);
+createPlatform(-26, 0, 32, 1.6, 1.6, { moving: { axis: 'z', distance: 5, speed: 1.2 } });
+createCollectible(-26, 0, 32.3);
+createPlatform(-21, 0, 32, 1.6, 1.6, { moving: { axis: 'z', distance: 5, speed: 1.2 } });
+createCollectible(-21, 0, 32.3);
+createPlatform(-23.5, -8, 33, 1.8, 1.8);
+createCollectible(-23.5, -8, 33,3);
 
 
 
 
 // שינוי כאן: הפלטפורמה האחרונה זזה כעת למעלה ולמטה (ציר y) והמטבע מקושר אליה
-const verticalPlatform = createPlatform(-16, 22, 20, 1.6, 1.6, { moving: { axis: 'y', distance: 10, speed: 2 } });
+const verticalPlatform = createPlatform(-16, 22, 20, 1.6, 1.6, { moving: { axis: 'y', distance: 10, speed: 3 } });
 createCollectible(-16, 22, 20, verticalPlatform);
 
 
