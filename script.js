@@ -21,6 +21,36 @@ const remainingEl = document.getElementById('remaining');
 const statusEl = document.getElementById('status');
 const restartBtn = document.getElementById('restart');
 
+// =========================================================================
+//  אלמנטי ממשק חדשים (HUD) - נוצרים אוטומטית ב-JS עבור טיימר ושיא
+// =========================================================================
+const timerContainer = document.createElement('div');
+timerContainer.style.position = 'absolute';
+timerContainer.style.top = '20px';
+timerContainer.style.left = '20px';
+timerContainer.style.background = 'rgba(22, 27, 34, 0.85)';
+timerContainer.style.border = '1px solid #30363d';
+timerContainer.style.color = '#c9d1d9';
+timerContainer.style.padding = '15px';
+timerContainer.style.borderRadius = '10px';
+timerContainer.style.fontFamily = 'sans-serif';
+timerContainer.style.fontSize = '16px';
+timerContainer.style.direction = 'rtl';
+timerContainer.style.boxShadow = '0 4px 15px rgba(0,0,0,0.5)';
+timerContainer.innerHTML = `
+  <div style="margin-bottom: 5px;">⏱️ זמן נוכחי: <span id="liveTimer" style="color: #58a6ff; font-weight: bold;">0:00</span></div>
+  <div style="margin-bottom: 8px;">🏆 שיא אישי (הכי מהיר): <span id="bestTimer" style="color: #7ee787; font-weight: bold;">--</span></div>
+  <div style="font-size: 12px; color: #ff7b72; font-weight: bold; border-top: 1px solid #30363d; padding-top: 5px;">⚠️ צריך לאסוף את כל המטבעות כדי לנצח!</div>
+`;
+document.body.appendChild(timerContainer);
+
+// טעינת שיא אישי מתוך ה-localStorage של הדפדפן
+const savedBest = localStorage.getItem('3d_platformer_best_time');
+let bestTime = savedBest ? parseFloat(savedBest) : Infinity;
+if (savedBest) {
+  document.getElementById('bestTimer').textContent = formatTime(bestTime);
+}
+
 const ambientLight = new THREE.HemisphereLight(0x88b8ff, 0x20294b, 0.8);
 scene.add(ambientLight);
 
@@ -190,6 +220,10 @@ let hasStartedMoving = false;
 let goalReached = false;
 let goalPlatform = null;
 
+// משתנים ייעודיים עבור השער החוסם (הקיר)
+let gateMesh = null;
+let gateClosed = true;
+
 function createCollectible(x, z, y = 0.8, parentPlatform = null) {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.1), collectibleMaterial);
   mesh.position.set(x, y, z);
@@ -198,7 +232,7 @@ function createCollectible(x, z, y = 0.8, parentPlatform = null) {
     collected: false, 
     bobOffset: Math.random() * Math.PI * 2, 
     baseY: y,
-    parentPlatform: parentPlatform // קישור לפלטפורמה כדי שיזוז איתה
+    parentPlatform: parentPlatform 
   };
   scene.add(mesh);
   collectibles.push(mesh);
@@ -277,7 +311,7 @@ function createGoalPlatform(x, z, y, width, depth) {
   const goalMaterials = [
     new THREE.MeshStandardMaterial({ color: 0x228b22, flatShading: true }),
     new THREE.MeshStandardMaterial({ color: 0x228b22, flatShading: true }),
-    new THREE.MeshStandardMaterial({ color: 0x7fff00, flatShading: true }),
+    new THREE.MeshStandardMaterial({ color: 0x7fff00, flatShading: true }), // חלק עליון ירוק בהיר זוהר
     new THREE.MeshStandardMaterial({ color: 0x228b22, flatShading: true }),
     new THREE.MeshStandardMaterial({ color: 0x228b22, flatShading: true }),
     new THREE.MeshStandardMaterial({ color: 0x228b22, flatShading: true })
@@ -313,6 +347,22 @@ function createGoalPlatform(x, z, y, width, depth) {
   };
   goalPlatform = platformData;
   platforms.push(platformData);
+}
+
+// פונקציה חדשה ליצירת קיר/שער פיזי אדום וחוסם
+function createGate(x, z, y, width, height) {
+  const geom = new THREE.BoxGeometry(width, height, 0.4);
+  const mat = new THREE.MeshStandardMaterial({ 
+    color: 0xff3333, 
+    transparent: true, 
+    opacity: 0.75, 
+    roughness: 0.2 
+  });
+  gateMesh = new THREE.Mesh(geom, mat);
+  gateMesh.position.set(x, y + height / 2, z);
+  gateMesh.castShadow = true;
+  gateMesh.receiveShadow = true;
+  scene.add(gateMesh);
 }
 
 function updatePlayerBox() {
@@ -376,7 +426,6 @@ function updateMovingPlatforms(delta) {
     const previousY = platform.y;
     const previousZ = platform.z;
 
-    // ציר X
     if (platform.moving.axis === 'x') {
       platform.x += move;
       platform.group.position.x += move;
@@ -390,7 +439,6 @@ function updateMovingPlatforms(delta) {
         platform.moving.dir = 1;
       }
     } 
-    // ציר Y (חדש!)
     else if (platform.moving.axis === 'y') {
       platform.y += move;
       platform.group.position.y += move;
@@ -404,7 +452,6 @@ function updateMovingPlatforms(delta) {
         platform.moving.dir = 1;
       }
     }
-    // ציר Z
     else {
       platform.z += move;
       platform.group.position.z += move;
@@ -430,14 +477,12 @@ function updateMovingPlatforms(delta) {
     const onPlatform = playerBox.max.x >= min.x - 0.01 && playerBox.min.x <= max.x + 0.01;
     const insideZ = playerBox.max.z >= min.z - 0.01 && playerBox.min.z <= max.z + 0.01;
     
-    // בדיקה מעט יותר סלחנית בגובה עבור פלטפורמות שיורדות למטה
     const onPlatformFinal = onPlatform && insideZ && playerBottom >= (max.y - dy) - 0.05 - 0.3 && playerBottom <= (max.y - dy) + 0.6;
 
     if (onPlatformFinal && !goalReached) {
       player.position.x += dx;
       player.position.z += dz;
       
-      // אם הפלטפורמה זזה אנכית, נצמיד את השחקן אליה כדי שלא ירחף או ישקע
       if (platform.moving.axis === 'y') {
         player.position.y = platform.y - playerBottomOffset;
         playerVelocity.y = 0;
@@ -484,19 +529,20 @@ createPlatform(-17, 10, 30, 1.8, 1.8);
 createCollectible(-17, 10, 30,3);
 createPlatform(-19, 7, 31, 1.8, 1.8);
 createCollectible(-19, 7, 31,3);
-createPlatform(-26, 0, 32, 1.6, 1.6, { moving: { axis: 'z', distance: 5, speed: 1.2 } });
-createCollectible(-26, 0, 32.3);
+
 createPlatform(-21, 0, 32, 1.6, 1.6, { moving: { axis: 'z', distance: 5, speed: 1.2 } });
 createCollectible(-21, 0, 32.3);
-createPlatform(-23.5, -8, 33, 1.8, 1.8);
-createCollectible(-23.5, -8, 33,3);
+createPlatform(-18.4, -8, 33, 1.8, 1.8);
+createCollectible(-18.5, -8, 33,3);
 
-
-
-
-// שינוי כאן: הפלטפורמה האחרונה זזה כעת למעלה ולמטה (ציר y) והמטבע מקושר אליה
 const verticalPlatform = createPlatform(-16, 22, 20, 1.6, 1.6, { moving: { axis: 'y', distance: 10, speed: 3 } });
 createCollectible(-16, 22, 20, verticalPlatform);
+
+// -------------------------------------------------------------------------
+// שדרוג מפת המשחק: הוספת משטח יעד (Goal) ושער חוסם (Gate) מיד לאחר הפלטפורמה האחרונה
+// -------------------------------------------------------------------------
+createGoalPlatform(-18.4, -16, 33, 4, 4); // פלטפורמת יעד ירוקה
+createGate(-18.4, -13, 33, 4, 4);        // השער האדום החוסם לפניה בציר ה-Z
 
 
 isGrounded = !!getPlatformUnder();
@@ -655,16 +701,56 @@ function updatePlayer(delta) {
     }
   }
 
-  if (goalPlatform && platformUnder === goalPlatform) {
-    const remaining = collectibles.filter((item) => !item.userData.collected).length;
-    if (remaining === 0 && !goalReached) {
-      goalReached = true;
-      const elapsed = performance.now() - runStartTime;
-      statusEl.textContent = `הגעת ליעד! זמן: ${formatTime(elapsed)}`;
-      restartBtn.classList.remove('hidden');
-    } else if (remaining > 0) {
-      statusEl.textContent = 'אסוף את כל המטבעות לפני שתסיים את היעד';
+  // -------------------------------------------------------------------------
+  // שדרוג: חישוב התנגשות פיזית עם השער האדום החוסם
+  // -------------------------------------------------------------------------
+  if (gateClosed && gateMesh) {
+    const gateBox = new THREE.Box3().setFromObject(gateMesh);
+    if (playerBox.intersectsBox(gateBox)) {
+      // חסימת השחקן פיזית מלהתקדם בציר ה-Z אל תוך היעד
+      player.position.z = gateBox.max.z + playerSize.z / 2 + 0.05;
+      
+      const totalCoins = collectibles.length;
+      statusEl.textContent = `🚫 השער נעול! אספת ${score}/${totalCoins}. צריך לאסוף את כל המטבעות כדי לנצח!`;
     }
+  }
+
+  // -------------------------------------------------------------------------
+  // שדרוג: הגעה למשטח היעד (Goal Platform) ומסך ניצחון
+  // -------------------------------------------------------------------------
+  if (goalPlatform && platformUnder === goalPlatform && !goalReached) {
+    goalReached = true;
+    const elapsed = performance.now() - runStartTime;
+    
+    // בדיקה ועדכון של השיא האישי (הזמן הכי קצר)
+    if (elapsed < bestTime) {
+      bestTime = elapsed;
+      localStorage.setItem('3d_platformer_best_time', bestTime);
+      document.getElementById('bestTimer').textContent = formatTime(bestTime);
+    }
+
+    statusEl.textContent = `ניצחת! 🎉 זמן סופי: ${formatTime(elapsed)}`;
+    
+    // הצגת הודעת הניצחון הייעודית על גבי ה-Overlay שביקשת
+    if (overlay) {
+      overlay.style.display = 'flex';
+      overlay.style.flexDirection = 'column';
+      overlay.style.justifyContent = 'center';
+      overlay.style.alignItems = 'center';
+      overlay.style.backgroundColor = 'rgba(13, 11, 23, 0.9)';
+      
+      overlay.innerHTML = `
+        <h1 style="color: #7fff00; font-size: 55px; font-family: sans-serif; text-shadow: 0 0 20px rgba(127,255,0,0.5); margin-bottom: 10px;">ניצחת! 🎉</h1>
+        <p style="font-size: 22px; color: #fff; font-family: sans-serif; margin: 5px 0;">כל הכבוד! סיימת את המשחק בזמן של: <span style="color: #58a6ff; font-weight: bold;">${formatTime(elapsed)}</span></p>
+        <p style="font-size: 18px; color: #ffd35c; font-family: sans-serif; margin: 5px 0 25px 0;">🏆 השיא הכי מהיר שלך: ${formatTime(bestTime)}</p>
+        <button id="winRestartBtn" style="padding: 12px 35px; font-size: 18px; font-family: sans-serif; font-weight: bold; background: #7fff00; border: none; border-radius: 6px; cursor: pointer; transition: 0.2s;">שחק שוב</button>
+      `;
+      
+      document.getElementById('winRestartBtn').addEventListener('click', () => {
+        window.location.reload();
+      });
+    }
+    restartBtn.classList.remove('hidden');
   }
 
   const playerBottom = player.position.y + playerBottomOffset;
@@ -704,7 +790,6 @@ function updateCollectibles(delta) {
     if (mesh.userData.collected) return;
     mesh.rotation.z += delta * 2;
     
-    // אם המטבע מקושר לפלטפורמה זזה, נוסיף את גובה הפלטפורמה לחישוב המיקום שלו
     if (mesh.userData.parentPlatform && mesh.userData.parentPlatform.moving) {
       mesh.position.y = mesh.userData.parentPlatform.y + (mesh.userData.baseY - mesh.userData.parentPlatform.moving.baseY) + Math.sin(mesh.userData.bobOffset + performance.now() * 0.003) * 0.15;
     } else {
@@ -725,8 +810,16 @@ function checkCollisions() {
       scoreEl.textContent = score;
       const remaining = collectibles.filter((item) => !item.userData.collected).length;
       remainingEl.textContent = remaining;
+      
+      // -------------------------------------------------------------------------
+      // שדרוג: פתיחת השער ברגע שנאספו כל המטבעות
+      // -------------------------------------------------------------------------
       if (remaining === 0) {
-        statusEl.textContent = 'אספת את כל המטבעות! כעת הגיע ליעד';
+        statusEl.textContent = '🔓 אספת את כל המטבעות! השער פתוח, רוץ אל היעד הירוק!';
+        if (gateClosed && gateMesh) {
+          gateClosed = false;
+          scene.remove(gateMesh); // מעלים את הקיר האדום החוסם מהעולם
+        }
       } else {
         statusEl.textContent = `נשארו ${remaining} מטבעות`;
       }
@@ -777,6 +870,17 @@ function animate(time = 0) {
   checkObstacles();
   checkCollisions();
   updateCamera();
+
+  // -------------------------------------------------------------------------
+  // שדרוג: עדכון הטיימר החי שמוצג על המסך בזמן אמת
+  // -------------------------------------------------------------------------
+  if (hasStartedMoving && !goalReached) {
+    const elapsed = performance.now() - runStartTime;
+    const liveTimerEl = document.getElementById('liveTimer');
+    if (liveTimerEl) {
+      liveTimerEl.textContent = formatTime(elapsed);
+    }
+  }
 
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
