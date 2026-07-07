@@ -80,8 +80,7 @@ const startPlatformY = 1.8;
 
 
 const loader = new GLTFLoader();
-const playerModelUrl = new URL('./player.glb', import.meta.url).href;
-loader.load(playerModelUrl, (gltf) => {
+loader.load('./player.glb', (gltf) => {
   const model = gltf.scene; 
   const skinnedMeshes = [];
   
@@ -177,8 +176,8 @@ loader.load(playerModelUrl, (gltf) => {
     statusEl.textContent = 'מודל נטען אך לא נמצאו אנימציות ו/או שלד ב-GLB';
   }
 }, undefined, (error) => {
-  console.error('Error loading player model (url:', playerModelUrl, '):', error);
-  statusEl.textContent = `לא ניתן לטעון את מודל השחקן (${playerModelUrl}). בדוק שהקובץ קיים והנתיב יחסית ל-\`script.js\` - GitHub Pages רגיש לנתיבים. שגיאה: ${error && error.message ? error.message : error}`;
+  console.error('Error loading player model:', error);
+  statusEl.textContent = 'לא ניתן לטעון את מודל השחקן. ודא שאתה מריץ את המשחק דרך שרת מקומי ולא דרך file://';
 });
 
 const collectibles = [];
@@ -755,8 +754,7 @@ function updatePlayer(delta) {
   }
 
   const playerBottom = player.position.y + playerBottomOffset;
-  // Only trigger automatic reload for falling after the player/model is ready
-  if (!platformUnder && playerBottom < -2 && !hasFallen && (playerReady || hasStartedMoving)) {
+  if (!platformUnder && playerBottom < -2 && !hasFallen) {
     hasFallen = true;
     statusEl.textContent = 'נפסלת! מתחיל מחדש...';
     setTimeout(() => window.location.reload(), 700);
@@ -835,10 +833,7 @@ function checkObstacles() {
     tempBox.setFromObject(mesh);
     if (playerBox.intersectsBox(tempBox)) {
       statusEl.textContent = 'פגעת במכשול! נופל...';
-      // Only reload if the player/model/game has actually started to avoid reload loops
-      if (playerReady || hasStartedMoving) {
-        setTimeout(() => window.location.reload(), 600);
-      }
+      setTimeout(() => window.location.reload(), 600);
     }
   });
 }
