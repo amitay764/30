@@ -755,7 +755,8 @@ function updatePlayer(delta) {
   }
 
   const playerBottom = player.position.y + playerBottomOffset;
-  if (!platformUnder && playerBottom < -2 && !hasFallen) {
+  // Only trigger automatic reload for falling after the player/model is ready
+  if (!platformUnder && playerBottom < -2 && !hasFallen && (playerReady || hasStartedMoving)) {
     hasFallen = true;
     statusEl.textContent = 'נפסלת! מתחיל מחדש...';
     setTimeout(() => window.location.reload(), 700);
@@ -834,7 +835,10 @@ function checkObstacles() {
     tempBox.setFromObject(mesh);
     if (playerBox.intersectsBox(tempBox)) {
       statusEl.textContent = 'פגעת במכשול! נופל...';
-      setTimeout(() => window.location.reload(), 600);
+      // Only reload if the player/model/game has actually started to avoid reload loops
+      if (playerReady || hasStartedMoving) {
+        setTimeout(() => window.location.reload(), 600);
+      }
     }
   });
 }
