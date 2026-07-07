@@ -80,7 +80,8 @@ const startPlatformY = 1.8;
 
 
 const loader = new GLTFLoader();
-loader.load('./player.glb', (gltf) => {
+const playerModelUrl = new URL('./player.glb', import.meta.url).href;
+loader.load(playerModelUrl, (gltf) => {
   const model = gltf.scene; 
   const skinnedMeshes = [];
   
@@ -176,8 +177,8 @@ loader.load('./player.glb', (gltf) => {
     statusEl.textContent = 'מודל נטען אך לא נמצאו אנימציות ו/או שלד ב-GLB';
   }
 }, undefined, (error) => {
-  console.error('Error loading player model:', error);
-  statusEl.textContent = 'לא ניתן לטעון את מודל השחקן. ודא שאתה מריץ את המשחק דרך שרת מקומי ולא דרך file://';
+  console.error('Error loading player model (url:', playerModelUrl, '):', error);
+  statusEl.textContent = `לא ניתן לטעון את מודל השחקן (${playerModelUrl}). בדוק שהקובץ קיים והנתיב יחסית ל-\`script.js\` - GitHub Pages רגיש לנתיבים. שגיאה: ${error && error.message ? error.message : error}`;
 });
 
 const collectibles = [];
